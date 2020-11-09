@@ -1,7 +1,7 @@
-var version
-
+var version;
+var currentpage;
 //Function to get parameters URL
-$.urlParam = function(name){
+$.pageParam = function(name){
     var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
     if (results==null) {
        return null;
@@ -11,6 +11,8 @@ $.urlParam = function(name){
 
 //Function open page 
 function openPage(page) {
+  currentpage = page;
+  window.history.pushState("", "", `?page=${page}`);
   $.get(page+".html",function(data) {
     $('#content').html(data);
   });
@@ -49,6 +51,10 @@ function accordion() {
   }
 }
 
+function refresh(){
+  openPage(currentpage);
+}
+
 
 function checkSDCard() {
   $.get("/cgi-bin/ui_sdcard.cgi", {cmd: "check_sdcard"}, function (result) {
@@ -69,11 +75,11 @@ $(document).ready(function () {
     // Check SD Card
     checkSDCard();
 
-    // Display content depend url parameter
-    if ( $.urlParam('url') != null )
-        var url = $.urlParam('url')+".html"
+    // Display content depend page parameter
+    if ( $.pageParam('page') != null )
+        var page = $.pageParam('page')
     else
-        var url = "live.html"
+        var page = "live"
 
     //Check if theme configured
     var css = localStorage.getItem('theme')
@@ -88,7 +94,7 @@ $(document).ready(function () {
       location.reload();
     });
     
-    $("#content").load(url);
+    openPage(page)
 
 });
 

@@ -12,16 +12,20 @@ function deleteFile(fileName,dir,confirm) {
     }
 }
 
-//Function to open picure
-function openPicture(img) {
-    $('#modal_picture_content').html("<img class='w3-modal-content w3-center' src="+img+">");
+function openFile(file) {
+    var file_info = file.split(".");       
+    if (file_info[1] == "jpg")
+    $('#modal_picture_content').html("<img class='w3-modal-content w3-center' src='"+file+";>");
+    else if (file_info[1] == "mp4")
+    $('#modal_picture_content').html("<video width='130%'  controls muted> <source src='"+file+"' type='video/mp4'>not supported</video>");
     document.getElementById('modal_picture').style.display='block'
 }
 
-//Function to get video and images files from dir
+
+
 function getFiles(dir) {
     // Get files from dir
-    $.get("cgi-bin/ui_sdcard.cgi", {cmd: "getFiles", dir: dir}, function(config){             
+    $.getJSON("cgi-bin/ui_sdcard.cgi", {cmd: "events", dir: dir}, function(data_files){             
         $('#'+dir).html(" <p><button id='del_"+dir+"' class='w3-btn w3-theme'>Delete selected</button></p>\
         <table class='w3-table-all' id='result_"+dir+"'>\
         <thead>\
@@ -33,22 +37,24 @@ function getFiles(dir) {
           </tr>\
         </thead>\
         <tbody>");
-        var config_all = config.split("\n");    
-        if ( config_all.length == 1)
+        if (data_files.length == 0)
             $('#'+dir).html("<h1>No files found</h1>");
-        for (var i = 0; i < config_all.length-1; i++) {
-         var config_info = config_all[i].split("#:#");
-         var file_info = config_info[3].split(".");       
+
+        for (const data of data_files ) {
+         var filename = data.file.replace(/^.*[\\\/]/, '')
+         var file_info = filename.split(".");       
          var html_photo = "";
          if (file_info[1] == "jpg")
-            html_photo = "<span onclick='openPicture(\""+config_info[3]+"\");' title='View picture'><i class='far fa-eye'></i>";
+            html_photo = "<span onclick='openFile(\""+data.file+"\");' title='View picture'><i class='far fa-eye'></i>";
+         else if (file_info[1] == "mp4")
+            html_photo = "<span onclick='openFile(\""+data.file+"\");' title='View video'><i class='far fa-eye'></i>";
          $('#result_'+dir).append("<tr> \
-         <td>"+config_info[0]+"</td> \
-         <td>"+config_info[1]+"</td> \
-         <td>"+config_info[2]+"</td> \
+         <td>"+filename+"</td> \
+         <td>"+data.size+"</td> \
+         <td>"+data.date+"</td> \
          <td> \
-             <a href=\""+config_info[3]+"\" download><i class='fas fa-download' title='Download file'></i></a> \
-            <span onclick=\"deleteFile('"+config_info[3]+"','"+dir+",true')\"><i class='fas fa-trash' title='Delete file'></i></span>\
+             <a href=\""+data.file+"\" download><i class='fas fa-download' title='Download file'></i></a> \
+            <span onclick=\"deleteFile('"+data.file+"','"+dir+",true')\"><i class='fas fa-trash' title='Delete file'></i></span>\
             "+html_photo+"\
             </td></tr>");
         }
@@ -73,16 +79,19 @@ function getFiles(dir) {
 
 }
 
+
 function showEvents() {
 
-    $.getJSON("cgi-bin/ui_sdcard.cgi", {cmd: "events"}, function(data){             
+    $.getJSON("cgi-bin/ui_sdcard.cgi", {cmd: "events", dir: "motion"}, function(data){             
         
-        var events = data.filter(item => item.file.endsWith("jpg") ).map(item => {
+        var events = data.filter(item => item.file.endsWith(".jpg") || item.file.endsWith(".mp4") ).map(item => {
             return { date: new Date(item.date),
                     detail: { 
                         file : item.file
                     }}; 
         });
+        console.log(events);
+    if(events.length > 0) {
        var chart = eventDrops({
         range: {
             start: events.reduce((a, b) => a.date < b.date ? a : b).date,
@@ -91,11 +100,14 @@ function showEvents() {
           drop: {
               date: d => d.date,
               onClick : data => {
-                openPicture(data.detail.file);
+                openFile(data.detail.file);
               }
           }
         });
         d3.select('#events-graph').html("").datum([{ name: "Events", data : events}]).call(chart);
+        } else {
+            d3.select('#events-graph').html("<h1>No events found</h1>")
+        }
     });
 
 }
